@@ -1,0 +1,496 @@
+AWS PROJECT 
+--------------------------------
+
+road map in this project step by step:
+-------------------------------------------------------------
+1.VPC
+2.SUBNET
+3.ROUTE TABLE
+4.NAT GATEWAY 
+5.SNS (SIMPLE NOTIFICATION SERVICE)
+6.S3 BUCKET 
+7.IAM ROLE
+8.EFS (ELASTIC FILE SYSTEM)
+9.SECURITY GROUPS
+10.LOAD BALANCER
+11.LAUNCH TEMPLATE
+12.AUTO SCALING
+13.BASTION SERVER
+14.ROUTE53
+15.FAILOVER ROUTING POLICY
+16.CLOUD WATCH
+17.CONFIGURE NACL
+18.CLOUD TRAIL 
+
+First you create a vpc 
+-----------------------------------------
+--> goto vpc --> create vpc --> create name= MYVPC  
+--> select CIDR range
+10.0.0.0/16 
+---> click on create .created  a vpc
+with in the vpc you sholud create subents. 
+we are creating 3 subnets for webserver create 2 subnets .
+websevers want to access  all over the world  so create  public ip 
+by default the subnets don't have public so we are enable the public ip for webservers
+so cretae 3 subnets 
+go to subent section by default every ec2 machine have subnets but you don't  distrub that
+ 
+create coustmised subnets
+-----------------------------------------
+--> go to create subnets 
+--> select our vpc  "MYVPC"
+--> give subnet name "MYSUBNET-1A"
+every subnet has 256 machines its starts from 0 to 251
+-->select availabulty zones "mumbai region ap-south-1A"
+--> IPv4 CIDR block 
+IPv4 CIDR block sholud always lower than the VPC range 
+10.0.1.0/24
+--> click on create subnet .
+
+2end subnet
+--> select our vpc  "MYVPC"
+--> give subnet name "MYSUBNET-1B"
+-->select availabulty zones "mumbai region ap-south-1B"
+--> IPv4 CIDR block 
+--> 10.0.2.0/24
+--> click on create subnet .
+
+3rd subnet 
+--> select our vpc  "MYVPC"
+--> give subnet name "MYSUBNET-1c"
+-->select availabulty zones "mumbai region ap-south-1B"
+--> IPv4 CIDR block 
+--> 10.0.3.0/24
+--> click on create subnet .
+
+once we created a 3 subnets we are assign public ip to the webservers
+select subnet1
+-->goto actions --> edit subnet settings--> select  enable auto-assign public IPv4 address --> click on save 
+it will asign public ip .
+
+now we are  creating internet gateway  and route table because without internet gateway we can't use webservers
+--> goto internet gateway
+-->  give name to the internet gateway "MY-INGW"  
+--> click on create gateway.
+when you create  a gateway you sholud attach to "MYVPC"
+-->go to internet gateway -->select "MY-INGW" --> go to actions --> select attach vpc 
+give your vpc name and click on attach.
+
+now create ROUTETABLE :
+--------------------------------------
+--> go to route table -->create route table--> give route table name "internet-RT"
+seclect your vpc 
+create route table .
+
+once you create a route table this route table connect to  both subnets and also conect to internet gateway.
+select "internet-RT" --> go to subnet associations --> click on edit subnet associations.
+--> select MYSUBNET-1A
+               MYSUBNET-1B why these two subnet select because these are having  webservers in the subnets so we selected these.
+go back and select "internet-RT" --> goto route--> click on edit rules. 
+-->  click on add route -->  in the target section you mentioned internet gateway it shows you created gateway and click on that 
+---->in the destination you 0.0.0.0/0
+when ever you you deal with  internet blindly mug itup this range 0.0.0.0/0
+
+now we are created NAT gateway
+============================ 
+NAT gateway it is use for the providing the internet to the private subnet .
+but con't conect the NAT gateway  directly to the private subnet 1st we create NAT gateway and conect to the routetable via route table you can conncet private subent . 
+--> go to NAT gateways  create a NAT gateway 
+---> mentioned  a name for nat gateway   "MY-NATGW"
+---> select public subent only "MYSUBNET-1A" .
+NAT gateway need ellastic ip because when rebbot or the server the public ip changed then the conection is lost 
+so we avoid that distabence we create on elastic ip only. without elastic ip wwe can't create nat gateway
+---> click on allocate elastic ip (it will create auto matically )
+--> click on create NAT gateway
+
+after creating  NAT gateway connect default  route table this route table is one end is connected NAT gateway and the other conected private subnet .
+--> now go to route table take one default route table don't  take our created route 
+--> default route change the name "NAT-RT"
+--> go to subnet associations  --> click on edit subnet assocition 
+--> we take private subnet " MYSUBNET-1C "
+click on save subnet association. 
+--> now go to edit rules --> in the target section mentioned NAT gateway it is shows nat gatewy id selcet that
+--> in the destination section 0.0.0.0/0 because NAT gateway is also want internet give the range.
+
+now goto SNS (simple notification service ) :
+--------------------------------------------------------------------------
+--> first we need to create a topic with in the topic you create subscription.  subscription in the attached the mail-id .
+--> goto simple notification service --> select topic -->  click on create topic 
+--> give topic name "MYTOPIC"
+---> display name  "MYTOPIC"
+when you create a topic option take "standard" mode 
+--> click on create topic.
+then click created topic --> click on create subscription .
+you have protocal option select email option --> in the end point section you give your valid email id 
+then click on subscription .
+if you want give multple email ids chaitanya@gmail.com, chaitu@gmail.com, (you give coma and space) like that 
+
+now we are creating s3 bukets:
+--------------------------------------------------
+---> go to s3 bucket create bucket .  we are creating 3 bukets 1 is flow logs and another 2 is normal buckets
+
+here bucket sholud be universlly unique
+one bucket need to create flow logs so 
+click on create bucket 
+---> name "flow-logs-011"
+---> select region asia pacifice(mumbai) ap-south-1
+---> unmark the block all public access
+mark accoknowledgement
+--> create bucket
+similarly create 2 buckets.
+ ---> name "first-bucket-011"
+---> select region asia pacifice(mumbai) ap-south-1
+---> unmark the block all public access
+mark accoknowledgement
+--> create bucket
+ ---> name "secound-bucket-011"
+---> select region asia pacifice(mumbai) ap-south-1
+---> unmark the block all public access
+mark accoknowledgement
+--> create bucket
+create flow logs  and attach the s3 bucket
+
+--> go to vpc section --> select our created vpc --> go to actions 
+--> create click on flow log
+--> name is "MY-FLOW-LOG"
+--> filter option select all traffic click on "all"
+--> destinaation  
+     in the destination here mention  store  the flow logs 
+  data stores in which place so we are already create S3 bucket for flow logs
+--> select send to amazon S3bucket 
+--> now go to  S3 buckets --> select flow log bucket--> copy the ARN option 
+--> go to flowlog destination s3 bucket ARN 
+paste the ARN here
+--> click on create flowlog
+
+ now create  IAM  role 
+---------------------------------------
+--> goto IAM roles dashbord  and click on Roles .  
+here we should  want to  the role is from ec2 to s3 bucket full access.
+--> click on create role -->  select ec2 --> next permissions 
+--> create a policy "Amazon-S3-full-access"--> next tags
+--> tags are optional  if you want to give or leave it.--> click on next
+--> give role name "EC2-S3-access-role" ----> click on create a role
+
+now create EFS (Elastic File System)
+------------------------------------------------------------
+in search bar search EFS
+select EFS --> click on create file system 
+-->  give name "MY-EFS"
+---> this EFS is going to created our own vpc so select MYVPC   (don't take default vpc) 
+--> click on  create 
+and one more thing we need to do 
+--> goto vpc dashboard -->  click on your vpc --> select MYVPC ---> go to actions 
+--> click on edit DNS host name --> click on "enable" DNS host name section 
+--> click on save changes 
+later again go to actions --> go to Edit DNS resolutaio. here also enable the DNS resolution.
+if it is alreday enable plz leave like that
+
+now create one SECURITY GROUPS:
+----------------------------------------------------
+ go to EC2 dash board --> go to security group -->click on  create security group  
+--> security group name "web-SG"
+---> give any discription .
+--> select our vpc "MYVPC"
+--> goto out bound rules --> ssh port is only my self so --> in the destination section give " MY IP "
+-->  httpd or apache is every one --->so in the destisntion section " anywhere ".
+--> click on create security group.
+this security group using while create auto scaleing.
+
+creating AUTO SCALING and LOAD BALANCER launch instance with auto scaling.
+=============================================================
+now we are going to load balancer 
+---> go to load balencer --> create load balancer .
+---> select clasic load balanecr for webservers so we take classic load balancer  
+ --->create a  classic load balncer 
+---> give name of the load balancer "mumbai-LB" --> select our vpc MYVPC
+-----> subnets 
+load balancer should  is connect only the servers that is also only public subnets 
+so choose public subnet only.
+--> MYSUBNET-1A
+     MYSUBNET-1B
+---> assgin security group  our security group is "web-SG" we are already open ports ssh  and http port.
+ ---> we are also taking by default security group also  because EFS is taking default security group.
+---> config health checks --> advance details 
+response timeout: 2sec (here load balncer ping the target and target how much time it is respond here mention)
+
+intervel: 5sec ( here how frequently check load balncer the target is working or not .you give 5 secounds in every 5 secounds LB is checking target helthy or not)
+
+unhelthy threshold: 2sec (here response time is 5sec you mentioned above  so LB check every 5sec.if it is not working LB is check in one more time that mens 2 time so here you give 2 secounds it is one more time check within 2sec .the 2end time is also not working The LB declare it is unhelthy )
+
+helthy threshold: 2 ( here the target is unhelthy  so we do trouble shoot. and target is geting ready. so here the LB is send request 1 st time it is working .here you mentiod 2end time also LB send request  it is response 2end time LB confirm the target is working now it is send client request this target)
+--> add instance we dont create any instance 
+--->  click on create a load balancer
+
+create a LAUNCH TEMPLATE :
+---------------------------------------------
+in the Ec2 go to launch template --> create a launch template 
+---> name of the template "MY-TEMPLATE" 
+--> any version is "1"
+--->  mark auto scaling guidence  
+--> ami requierd choose "Amazon linux or ubntu linux"
+ --> instance type t2.micro its a free version 
+--> create a key pair 
+--> security group "web-SG" andalso select default sg alos because EFS work in defaut 
+--> click on advance deatils 
+---> click iam instance profile  select our create iam role "Amazon-S3-full-access"
+goto down 
+---> user data (here  you give boostrap scrpit for web server)
+-->boostrap script
+#!/bash/bash 
+sudo su -  
+yum update -y 
+mkdir /chaitu (this is the mount point here you mention mount point its how many instance you created automtically the)    paste here       ( instance have chaitu folder and also how to mounting --> EFC dash board   click on "MY-EFS"-->  click on   )    change folder  (attach --> take the option 'using the NFS client ' below have command copy the coomand paste)
+efs to /chaiu   
+yum install httpd -y 
+cd /var/www/html
+echo "MYGOOGLE" > index.html
+service httpd start
+chkconfig httpd on 
+
+--> click on launch template
+
+now create AUTO SCALING  
+---------------------------------------
+goto auto scaling-->click on  create auto scaling--> name "MY-AUTO-SCALE "
+--> select launch template "MY-TEMPLATE" -->click on next 
+---> select vpc "MYVPC"
+---> select subnet--> select 2 public subnets (because i am creating servers in all subnets) 
+--> click next---> attach load balancer--> choose from classic load balancer  take existing load balancer "mumbai-LB"
+--> health checks give 150 secounds --> click on next 
+--> desired capacity is 4
+     minimum is 4 
+     maximum is 7
+--> click on next 
+---> click on add notification --> give topic name "MYTOPIC"
+--> next  tags is optional if you want give or not
+--> click on create auto scaling 
+
+now goto ec2 machine it is having 4 webservers
+take any public ip  searching in browser you get "MYGOOGLE" page.
+
+now we are creating  BASTION SERVER
+------------------------------------------------------------
+we are create private server  in that server  install database package like mysql,oracle,postgres,dynamo db, this server no one access this sql account but some times you change the versions or any patch updates so in that time you give to access database adminer but adminer can't  access directly so the adminer 1st  conect  bastion server through access the database server. so thats why we are creating bastion server.
+
+now we are creating bastion server ---> go to  ec2 --> launch instance--> you choose amazon linux or ubuntu --> instance type t2.micro--> no of instance 1--> vpc select MYVPC --> subnet take any public subnet --> add tags any name "bastion"
+--> take new security group "BASTION_SG"--> open ssh port and source "myip"--> click on launch .
+
+now we are creating database server ---->go to  ec2 --> launch instance--> you choose amazon linux or ubuntu  --> instance type t2.micro--> no of instance 1--> vpc select MYVPC --> subnet take any private  subnet "MYSUBNET-1C" --> add tags any name "DB-server "--> take new security group "DB_SG"--> open ssh port and source "bastion server private ip"-->mysql/auror
+source given entire subnet ranges 10.0.1.0/24  and 10.0.2.0/24.-->   click on launch .
+
+now we are creating  ROUTE53
+===========================
+First we are creating helath checks 
+--> helth checks --> config health checks --> give name helth checks "mumbai-HC" 
+--> monitor end point click domain name (here maention your load balancer DNS name)
+-->port is 80 --> index.html--go to advanced configurtion
+ 
+request interval: 10 secounds (here when the route53 send request dns loadbalancer it is respond with in 10 seconds then when it is declare more than 10  seconds route53 declare load balnacer is failed)
+failure threshold : 1 (it is check at once if it is  not respond  1st time declare load balancer is failed 
+--> click on next --> add notifications --> create alram click on yes --> send notfications to exiting topic  
+---> select topic "MYTOPIC"---> create healthclicks 
+
+now we are creating fail over routeing policy :
+-----------------------------------------------------------------------
+--> now go to hosted zones ---> take domaine (you sholud have domain name like www.saicloudexpert.com )
+--> click on create record --> select "failover" option  --> enter "www"--> define failover record 
+--> you have option value/route traffic.  you give -->alias application and classic loadbalncer --> select region 
+-->it gives auto matically load balancer dns name.
+---> here you have option failover record type "primary or secondary " choose primary (this is primary vpc so we take primary vpc)---> helth check "mumbai-HC" ---> recorded id  "mumbai-LoadBalancer" click on define failover 
+--->  click on create record--> if you want to vreify " www.saicloudexpert.com" website access you know it is working or not
+
+if we have secound vpc so  
+--> now go to hosted zones ---> take domaine (you sholud have domain name like www.saicloudexpert.com )
+--> click on create record --> select "failover" option  --> enter "www"--> define failover record 
+--> you have option value/route traffic.  you give -->alias application and classic loadbalncer --> select region(in which region you have secound load balancer like)  -->it gives auto matically load balancer dns name.
+---> here you have option failover record type "primary or secondary " choose secondary (this is secuond  vpc so we take secound vpc)---> helth check "mumbai-HC" ---> recorded id  "mumbai-LoadBalancer" click on define failover 
+
+now we need to cloud watch
+----------------------------------------------
+now go to cloud watch here we want create graphs for that avg cpu utiliastaion of all autoscaling servers 
+--> here you create a dashboard --> mention dashboard name "web-servers"---> select graph models"stacked area "--> select metrics 
+--> click on configure --> select ec2 --> click on auto scaling group-->search for "cpuutilaisation" and save dash board 
+our moinitering is ready
+
+now we are verify all the configuration AWS project one by one
+===========================================================
+-----------------------------------------------------------------------------------------------------------------
+1. conect to flow logs and conect to s3 --> buckets ---> click on flow logs buket"flow-logs-011"--> click on floder you show the the flow logs on last folder.our job is download the flow logs and send it to be a ethical  hacking team
+if i want to download flow  logs click on file and click download
+2. go to bastion server and from there we are jump into database server 
+let us go into bastion server--> go to ec2 connect bastion like how can we conect git bash like that we can conect.
+but we can't concet database server because it is have a private subnet and ports are also not open
+here the data base server pem key is should be in bastion server . in the bastion server desktop pemkey is copy to bastion server then we connect db server 
+3. now go to webservers and is it able to access s3 buckets through CLI 
+"aws s3 ls" command is shwong s3buket list and all. that is my s3 bucket and our iam a role is working properly.
+4.test EFS service : so we take another server check efs and also we are attched mount point and folder  is "chaitu" all the terninal in root user 
+sudo su -
+cd /
+ls 
+here you see chaitu folder 
+this mount point folder is having all the webserver what ever we created .
+if in case our trafic is increasing our autoscaling is aloted new instance that is alos having this mount automatically.  
+now we go into mount point 
+cd chaitu 
+here you created any file or directory  it is shows all the servers using EFS
+in the mount point 
+--> cd chaitu
+--> touch project 
+-->  ls it shows project file 
+if you want to go another server in that place also this "project" shows .by using EFS . now we are giving auto scaling you done all these things automatically.
+4.cloud watch graphs 
+goto cloud watch dash board   it shows cpu utilisation in graphs .
+---> you want see the auto scaling creating servers that notification  you see in your email also .when ever the instance are workload is less delete the instance all the information send  through mail.
+
+configure NACL:
+=============  
+now we are creating NACL so go to vpc dashboard--> go to security -->select Network ACLs
+--> here default nacl is conect my vpc---> now we are creating own NACL-->click on create nacl 
+--> give name "public-NACL" ( because this nacl is attached by public subent  )
+--> select our  "MYVPC"---> clic on create NACL. 
+here  we are attaching the public subents the public servers  is not working.
+how attach the NACL with subnet 
+---> click on "public-NACL" --> click on edit subnet associations --> select two public subnets 
+                                                                                                                       SUBNET-1A
+                                                                                                                       SUBNET-1B
+click on  save edit subnet associations .
+when ever attach the NACL the conection lost on webservers and command terminal also 
+---> coustom NACL is block the all ports and all rules so thats why we are not access any webservers and command terminal
+---> so now are going all the neccessary rules one by one 
+--->---> click on "public-NACL" --> -->click on inbound rules 
+(here so many elimaents comes into that is statefull stateless and efemroall ports)
+---> so edit in bound rules ---> add new rule
+rule 1 is -100 
+--->click on rule number -->give  "100" --> type "ssh" port range is (22)  
+--.> sourec info here give your own ip "101.188.67.134" (here you bastion server ip or you can type in google is my ip that is also shows your ip)
+---> allow/deny you give "allow"
+
+rule 2 is -200
+--->click on rule number -->give  "200" --> type "http" port range is (80)
+ sourec info here give your own ip "0.0.0.0" ( so http port is acces to every one so you 0.0.0.0 all over access http port)
+---> allow/deny you give "allow"
+
+rule 3 is -300
+--->click on rule number -->give  "300" --> type "coustom tcp" port range (1024-65535)
+ sourec info here give your own ip "0.0.0.0" ( so http port is acces to every one so you 0.0.0.0 all over access http port)
+---> allow/deny you give "allow"
+click on save changes . here above the same rules change in the outbound rules 
+outbound rules 
+---> goto outbound rules ---> edit out bound rules 
+rule 1 is -100 
+--->click on rule number -->give  "100" --> type "ssh" port range is (22)  
+--.> sourec info here give your own ip "101.188.67.134" (here you bastion server ip or you can type in google is my ip that is also shows your ip)
+---> allow/deny you give "allow"
+
+rule 2 is -200
+--->click on rule number -->give  "200" --> type "http" port range is (80)
+ sourec info here give your own ip "0.0.0.0" ( so http port is acces to every one so you 0.0.0.0 all over access http port)
+---> allow/deny you give "allow"
+
+rule 3 is -300
+--->click on rule number -->give  "300" --> type "coustom tcp" port range (1024-65535)
+ sourec info here give your own ip "0.0.0.0" ( so http port is acces to every one so you 0.0.0.0 all over access http port)
+---> allow/deny you give "allow"
+
+here the priate subnet is already coneted private subnet by default.
+if you want know 
+goto NACL ---take default NACL which is conected myvpc --> change the name as "private-NACL"
+go to --> edit subnet association (here it shows alredy conect to the private subnet by default). 
+
+CLUOD TRAIL:
+----------------------- 
+in the cloud trail what ever we did the what ever so far eitre data is shows in the cloud trail 
+---> goto cloud trail dashboard  ---> select event histroy 
+here it is shows all the data so far by the date and time manner.
+
+
+if you want create another bastion server from that one conect db server that is also do 
+
+ bastion server (2):
+----------------------------
+we are create private server  in that server  install database package like mysql,oracle,postgres,dynamo db, this server no one access this sql account but some times you change the versions or any patch updates so in that time you give to access database adminer but adminer can't  access directly so the adminer 1st  conect  bastion server through access the database server. so thats why we are creating bastion server.
+
+now we are creating bastion server ---> go to  ec2 --> launch instance--> you choose amazon linux or ubuntu --> instance type t2.micro--> no of instance 1--> vpc select MYVPC --> subnet take any public subnet(SUBNET_1B) --> add tags any name "bastion1(b)"
+--> take new security group "BASTION_SG(B)"--> open ssh port and source "myip"--> click on launch .
+
+now we are creating database server ---->go to  ec2 --> launch instance--> you choose amazon linux or ubuntu  --> instance type t2.micro--> no of instance 1--> vpc select MYVPC --> subnet take any private  subnet "MYSUBNET-1C" --> add tags any name "DB-server "--> take new security group "DB_SG(B)"--> open ssh port and source " secound bastion server private ip"-->mysql/auror
+source given entire subnet ranges 10.0.2.0/24  and 10.0.1.0/24.-->   click on launch .
+
+in the real we same pattren but in the large scale 
+
+
+afrter complete the deleteion process you are the follow below order 
+
+1. nat gateway
+2.elastic load balancer
+3.auto scaling
+4.launch template 
+5.bastion 
+6.db server
+7.efs
+8.sns 
+9.s3
+10.iam 
+11.helth checks 
+12. route53
+13.cloud watch
+14.flow logs 
+15. relese -elastic-ip 
+16.vpc
+
+
+  
+
+    
+
+      
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+
+
